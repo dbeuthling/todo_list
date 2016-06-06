@@ -24,6 +24,21 @@ helpers do
   def todos_count(list)
     list[:todos].size
   end
+
+  def sort_lists(lists, &block)
+
+    complete_lists, incomplete_lists = lists.partition { |list| all_done?(list) }
+
+    incomplete_lists.each { |list| yield list, lists.index(list) }
+    complete_lists.each { |list| yield list, lists.index(list) }
+  end
+
+  def sort_todos(todos, &block)
+    complete_todos, incomplete_todos = todos.partition { |todo| todo[:completed] }
+
+    incomplete_todos.each { |todo| yield todo, todos.index(todo) }
+    complete_todos.each { |todo| yield todo, todos.index(todo) }
+  end
 end
 
 before do
@@ -37,6 +52,7 @@ end
 # View list of lists
 get "/lists" do
   @lists = session[:lists]
+  # completed_last(@lists)
   erb :lists, layout: :layout
 end
 
@@ -73,6 +89,7 @@ end
 get "/lists/:id" do
   @list_id = params[:id].to_i
   @list = session[:lists][@list_id]
+  # todos_sorted(@list)
   erb :list, layout: :layout
 end
 
