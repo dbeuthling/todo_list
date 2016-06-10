@@ -85,7 +85,7 @@ post "/lists" do
   end
 end
 
-# View a single list
+# View a single list of todos
 get "/lists/:id" do
   @list_id = params[:id].to_i
   @list = session[:lists][@list_id]
