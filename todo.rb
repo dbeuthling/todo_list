@@ -6,6 +6,7 @@ require "sinatra/content_for"
 configure do
   enable :sessions
   set :session_secret, 'secret'
+  set :erb, :escape_html => true
 end
 
 helpers do
@@ -52,7 +53,6 @@ end
 # View list of lists
 get "/lists" do
   @lists = session[:lists]
-  # completed_last(@lists)
   erb :lists, layout: :layout
 end
 
@@ -69,6 +69,16 @@ def error_for_list_name(name)
     "The list name must be between 1 and 100 characters."
   end
 end
+
+# Redirect to list of lists if list index doesn't exist
+def load_list(index)
+    list = session[:lists][index] if index
+    return list if list
+
+    session[:error] = "The specified list was not found."
+    redirect "/lists"
+    halt
+  end
 
 # Create a new list
 post "/lists" do
@@ -88,15 +98,14 @@ end
 # View a single list of todos
 get "/lists/:id" do
   @list_id = params[:id].to_i
-  @list = session[:lists][@list_id]
-  # todos_sorted(@list)
+  @list = load_list(@list_id)
   erb :list, layout: :layout
 end
 
 # Edit existing list
 get "/lists/:id/edit" do
-  @id = params[:id].to_i
-  @list = session[:lists][@id]
+  id = params[:id].to_i
+  @list = load_list(id)
   erb :list_edit, layout: :layout
 end
 
@@ -104,8 +113,8 @@ end
 post "/lists/:id/edit" do
   list_name = params[:list_name].strip
   error = error_for_list_name(list_name)
-  @id = params[:id].to_i
-  @list = session[:lists][@id]
+  id = params[:id].to_i
+  @list = load_list(id)
 
   if error
     session[:error] = error
@@ -135,7 +144,7 @@ end
 # Add todos to list
 post "/lists/:list_id/todos" do
   @list_id = params[:list_id].to_i
-  @list = session[:lists][@list_id]
+  @list = load_list(@list_id)
   text = params[:todo].strip
   error = error_for_todo(text)
 
@@ -152,7 +161,7 @@ end
 # Delete a todo item
 post "/lists/:list_id/todos/:todo_id/destroy" do
   @list_id = params[:list_id].to_i
-  @list = session[:lists][@list_id]
+  @list = load_list(@list_id)
   todo_id = params[:todo_id].to_i
   @list[:todos].delete_at(todo_id)
   session[:success] = "The todo has been deleted."
@@ -162,7 +171,7 @@ end
 # Mark todo as completed or uncomplete
 post "/lists/:list_id/todos/:todo_id" do
   @list_id = params[:list_id].to_i
-  @list = session[:lists][@list_id]
+  @list = load_list(@list_id)
   todo_id = params[:todo_id].to_i
   is_completed = params[:completed] == "true"
   @list[:todos][todo_id][:completed] = is_completed
@@ -173,7 +182,7 @@ end
 # Mark all todos complete on a list
 post "/lists/:list_id/complete_all" do
   @list_id = params[:list_id].to_i
-  @list = session[:lists][@list_id]
+  @list = load_list(@list_id)
   @list[:todos].each {|todo| todo[:completed] = true}
   session[:success] = "All todos have been completed."
   redirect "lists/#{@list_id}"
