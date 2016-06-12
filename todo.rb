@@ -37,8 +37,8 @@ helpers do
   def sort_todos(todos, &block)
     complete_todos, incomplete_todos = todos.partition { |todo| todo[:completed] }
 
-    incomplete_todos.each { |todo| yield todo, todos.index(todo) }
-    complete_todos.each { |todo| yield todo, todos.index(todo) }
+    incomplete_todos.each(&block)
+    complete_todos.each(&block)
   end
 end
 
@@ -128,10 +128,14 @@ end
 
 # Delete list
 post "/lists/:id/destroy" do
-id = params[:id].to_i
-session[:lists].slice!(id)
-session[:success] = "The list has been deleted"
-redirect "/lists"
+  id = params[:id].to_i
+  session[:lists].slice!(id)
+  if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
+    "/lists"
+  else
+    session[:success] = "The list has been deleted"
+    redirect "/lists"
+  end
 end
 
 # Error message if invalid todo
@@ -140,6 +144,13 @@ def error_for_todo(todo)
     "The todo must be between 1 and 100 characters."
   end
 end
+
+def next_todo_id(todos)
+  ids = []
+  todos.each { |todo| ids << todo[:id] }
+  ids.empty? ? 1 : ids.max + 1
+end
+
 
 # Add todos to list
 post "/lists/:list_id/todos" do
@@ -152,7 +163,8 @@ post "/lists/:list_id/todos" do
     session[:error] = error
     erb :list, layout: :layout
   else
-    @list[:todos] << {name: text, completed: false}
+    id = next_todo_id(@list[:todos])
+    @list[:todos] << {id: id, name: text, completed: false}
     session[:success] = "The todo has been added."
     redirect "/lists/#{@list_id}"
   end
@@ -163,18 +175,24 @@ post "/lists/:list_id/todos/:todo_id/destroy" do
   @list_id = params[:list_id].to_i
   @list = load_list(@list_id)
   todo_id = params[:todo_id].to_i
-  @list[:todos].delete_at(todo_id)
-  session[:success] = "The todo has been deleted."
-  redirect "/lists/#{@list_id}"
+  @list[:todos].reject! { |todo| todo[:id] == todo_id}
+  if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
+    status 204
+  else
+    session[:success] = "The todo has been deleted."
+    redirect "/lists/#{@list_id}"
+  end
 end
 
-# Mark todo as completed or uncomplete
+# Mark todo as completed or incomplete
 post "/lists/:list_id/todos/:todo_id" do
   @list_id = params[:list_id].to_i
   @list = load_list(@list_id)
   todo_id = params[:todo_id].to_i
+  todo = @list[:todos].find { |todo| todo[:id] == todo_id}
   is_completed = params[:completed] == "true"
-  @list[:todos][todo_id][:completed] = is_completed
+
+  todo[:completed] = is_completed
   session[:success] = "The list has been updated."
   redirect "lists/#{@list_id}"
 end
