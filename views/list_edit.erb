@@ -10,7 +10,7 @@
     </ul>
   </header>
 </section>
-<form action="/lists/<%= @id %>/edit" method="post">
+<form action="/lists/<%= params[:id] %>/edit" method="post">
   <dl>
     <dt>
       <label for="list_name">Enter the new name for the list:</label>
@@ -21,6 +21,6 @@
   </dl>
   <fieldset class="actions">
     <input type="submit" value="Save">
-    <a href="/lists<%= @id %>">Cancel</a>
+    <a href="/lists/<%= params[:id] %>">Cancel</a>
   </fieldset>
   </form>
